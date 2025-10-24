@@ -8,9 +8,7 @@ public final class SecurityUtil {
 
     public static Long currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getPrincipal() == null) {
-            return null;
-        }
+        if (auth == null || auth.getPrincipal() == null) return null;
         Object principal = auth.getPrincipal();
         if (principal instanceof JwtPrincipal jwtPrincipal){
             return jwtPrincipal.getUserId();
@@ -31,5 +29,9 @@ public final class SecurityUtil {
         }
 
         return null;
+    }
+
+    public static void clear() {
+        SecurityContextHolder.clearContext();
     }
 }

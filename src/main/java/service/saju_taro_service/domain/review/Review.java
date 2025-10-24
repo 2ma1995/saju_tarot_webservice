@@ -20,10 +20,13 @@ public class Review extends BaseTimeEntity {
     @Column(name = "reservation_id", nullable = false)
     private Long reservationId;
 
+    @Column(name = "counselor_id", nullable = false)
+    private Long counselorId;
+
     @Column(nullable = false)
     private int rating;
 
-    @Column(length = 2000)
+    @Column(length = 1000)
     private String comment;
 
     private boolean isActive = true;

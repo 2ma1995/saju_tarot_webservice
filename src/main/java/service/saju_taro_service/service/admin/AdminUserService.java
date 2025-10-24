@@ -60,11 +60,9 @@ public class AdminUserService {
         if (admin.getUserRole() != UserRole.ADMIN) {
             throw new IllegalStateException("관리자만 권한 부여가 가능합니다.");
         }
-
         // 대상 유저 확인
         User target = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("대상 유저 없음"));
-
         // 중복 방지
         if (target.getUserRole() == UserRole.ADMIN) {
             throw new IllegalStateException("이미 관리자입니다.");

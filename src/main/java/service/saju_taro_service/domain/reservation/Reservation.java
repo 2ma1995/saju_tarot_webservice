@@ -22,6 +22,9 @@ public class Reservation extends BaseTimeEntity {
     @Column(nullable = false)
     private Long counselorId; // 상담사
 
+    @Column(name = "schedule_id")
+    private Long scheduleId;
+
     @Column(name = "service_item_id",nullable = false)
     private Long serviceItemId; // 상담 서비스 ID
 

@@ -1,8 +1,9 @@
 package service.saju_taro_service.dto.review;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter @Setter
 public class ReviewRequest {
     private Long reservationId;
     private int rating;

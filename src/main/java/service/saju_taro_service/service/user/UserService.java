@@ -6,9 +6,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import service.saju_taro_service.domain.user.User;
 import service.saju_taro_service.domain.user.UserRole;
+import service.saju_taro_service.dto.user.UpdateNicknameRequest;
 import service.saju_taro_service.dto.user.UserResponse;
 import service.saju_taro_service.dto.user.UserSignupRequest;
 import service.saju_taro_service.dto.user.UserUpdateRequest;
+import service.saju_taro_service.global.exception.CustomException;
+import service.saju_taro_service.global.exception.ErrorCode;
+import service.saju_taro_service.global.util.SecurityUtil;
 import service.saju_taro_service.repository.UserRepository;
 
 import java.util.List;
@@ -24,8 +28,17 @@ public class UserService {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalStateException("이미 존재하는 이메일 입니다.");
         }
+        // 2️⃣ 닉네임 중복 검사
+        if (req.getNickname() == null || req.getNickname().isBlank()) {
+            throw new CustomException(ErrorCode.BAD_REQUEST, "닉네임을 입력해주세요.");
+        }
+
+        if (userRepository.existsByNickname(req.getNickname())) {
+            throw new CustomException(ErrorCode.BAD_REQUEST, "이미 사용 중인 닉네임입니다.");
+        }
         User user = User.builder()
                 .name(req.getName())
+                .nickname(req.getNickname())
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .phone(req.getPhone())
@@ -34,16 +47,6 @@ public class UserService {
         userRepository.save(user);
         return UserResponse.fromEntity(user);
     }
-
-//    @Transactional(readOnly = true)
-//    public UserResponse login(UserLoginRequest req) {
-//        User user = userRepository.findByEmailAndIsActiveTrue(req.getEmail())
-//                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
-//        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-//            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-//        }
-//        return UserResponse.fromEntity(user);
-//    }
 
     @Transactional(readOnly = true)
     public UserResponse getUser(Long id){

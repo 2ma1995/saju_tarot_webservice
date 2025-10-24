@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import service.saju_taro_service.dto.review.ReviewRequest;
+import service.saju_taro_service.global.exception.CustomException;
+import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.util.SecurityUtil;
 import service.saju_taro_service.service.review.ReviewService;
 
@@ -32,14 +34,24 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getAllReviews());
     }
 
-    // 후기 삭제
+    // 후기 삭제(관리자)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteReview(@PathVariable Long id) {
         String role = SecurityUtil.currentRole();
         if (!"ADMIN".equals(role)) {
-            return ResponseEntity.status(403).body("관리자만 삭제할 수 있습니다.");
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
         reviewService.deactivateReview(id);
         return ResponseEntity.ok("후기가 삭제되었습니다.");
     }
+
+    @GetMapping("/counselor/{counselorId}")
+    public ResponseEntity<?> getReviewsByCounselor(
+            @PathVariable Long counselorId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(reviewService.getReviewsByCounselor(counselorId, page, size));
+    }
+
 }

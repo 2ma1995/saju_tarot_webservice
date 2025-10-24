@@ -3,6 +3,8 @@ package service.saju_taro_service.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import service.saju_taro_service.global.exception.CustomException;
+import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.util.SecurityUtil;
 import service.saju_taro_service.service.role.RoleRequestService;
 
@@ -26,19 +28,14 @@ public class RoleRequestController {
     @GetMapping("/requests")
     public ResponseEntity<?> getPendingRequests() {
         String role = SecurityUtil.currentRole();
-        if (!"ADMIN".equals(role)) {
-            return ResponseEntity.status(403).body("관리자만 접근 가능합니다.");
-        }
+        validateAdmin();
         return ResponseEntity.ok(roleRequestService.getPendingRequests());
     }
 
     /** 관리자 → 승인 */
     @PostMapping("/approve/{requestId}")
     public ResponseEntity<?> approve(@PathVariable Long requestId) {
-        String role = SecurityUtil.currentRole();
-        if (!"ADMIN".equals(role)) {
-            return ResponseEntity.status(403).body("관리자만 접근 가능합니다.");
-        }
+        validateAdmin();
         roleRequestService.approveRequest(requestId);
         return ResponseEntity.ok("요청이 승인되었습니다.");
     }
@@ -48,13 +45,16 @@ public class RoleRequestController {
      */
     @PostMapping("/reject/{requestId}")
     public ResponseEntity<?> reject(@PathVariable Long requestId) {
-        String role = SecurityUtil.currentRole();
-        if (!"ADMIN".equals(role)) {
-            return ResponseEntity.status(403).body("관리자만 접근 가능합니다.");
-        }
+        validateAdmin();
         roleRequestService.rejectRequest(requestId);
         return ResponseEntity.ok("요청이 거절되었습니다.");
     }
 
+    private void validateAdmin() {
+        String role = SecurityUtil.currentRole();
+        if (!"ADMIN".equals(role)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
 
 }

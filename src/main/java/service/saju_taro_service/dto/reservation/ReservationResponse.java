@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 public class ReservationResponse {
     private Long id;
     private Long userId;
+    private String userName;
+    private String userPhone;
     private Long counselorId;
     private Long serviceItemId;
     private LocalDateTime reservationTime;
@@ -25,6 +27,14 @@ public class ReservationResponse {
         res.setReservationTime(r.getReservationTime());
         res.setStatus(r.getReservationStatus());
         res.setNote(r.getNote());
+        return res;
+    }
+
+    /** ✅ 상담사용 - 사용자 이름/전화 포함 버전 */
+    public static ReservationResponse fromEntityWithUser(Reservation r, String name, String phone) {
+        ReservationResponse res = fromEntity(r);
+        res.setUserName(name);
+        res.setUserPhone(phone);
         return res;
     }
 }

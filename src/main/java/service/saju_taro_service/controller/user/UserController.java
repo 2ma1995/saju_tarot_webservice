@@ -1,11 +1,14 @@
-package service.saju_taro_service.controller;
+package service.saju_taro_service.controller.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import service.saju_taro_service.dto.user.UpdateNicknameRequest;
 import service.saju_taro_service.dto.user.UserResponse;
 import service.saju_taro_service.dto.user.UserSignupRequest;
 import service.saju_taro_service.dto.user.UserUpdateRequest;
+import service.saju_taro_service.global.exception.CustomException;
+import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.util.SecurityUtil;
 import service.saju_taro_service.service.user.UserService;
 
@@ -38,10 +41,7 @@ public class UserController {
      **/
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAllUsers() {
-        String role = SecurityUtil.currentRole();
-        if (!"ADMIN".equals(role)) {
-            return ResponseEntity.status(403).build();
-        }
+        validateAdmin();
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
@@ -66,4 +66,11 @@ public class UserController {
         return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
     }
 
+
+    private void validateAdmin() {
+        String role = SecurityUtil.currentRole();
+        if (!"ADMIN".equals(role)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
 }
