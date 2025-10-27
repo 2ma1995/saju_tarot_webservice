@@ -3,6 +3,8 @@ package service.saju_taro_service.domain.review;
 import jakarta.persistence.*;
 import lombok.*;
 import service.saju_taro_service.domain.common.BaseTimeEntity;
+import service.saju_taro_service.domain.reservation.Reservation;
+import service.saju_taro_service.domain.user.User;
 
 @Entity
 @Table(name = "reviews")
@@ -14,14 +16,17 @@ public class Review extends BaseTimeEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @Column(name = "reservation_id", nullable = false)
-    private Long reservationId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counselor_id", nullable = false)
+    private User counselor;
 
-    @Column(name = "counselor_id", nullable = false)
-    private Long counselorId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id", nullable = false)
+    private Reservation reservation;
 
     @Column(nullable = false)
     private int rating;

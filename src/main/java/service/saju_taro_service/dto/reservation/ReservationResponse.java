@@ -12,8 +12,12 @@ public class ReservationResponse {
     private Long userId;
     private String userName;
     private String userPhone;
+
     private Long counselorId;
+    private String counselorName;
+
     private Long serviceItemId;
+
     private LocalDateTime reservationTime;
     private ReservationStatus status;
     private String note;
@@ -21,9 +25,22 @@ public class ReservationResponse {
     public static ReservationResponse fromEntity(Reservation r){
         ReservationResponse res = new ReservationResponse();
         res.setId(r.getId());
-        res.setUserId(r.getUserId());
-        res.setCounselorId(r.getCounselorId());
-        res.setServiceItemId(r.getServiceItemId());
+       // 유저
+        if (r.getUser() != null) {
+            res.setUserId(r.getUser().getId());
+            res.setUserName(r.getUser().getName());
+            res.setUserPhone(r.getUser().getPhone());
+        }
+        // 상담사
+        if (r.getCounselor() != null) {
+            res.setCounselorId(r.getCounselor().getId());
+            res.setCounselorName(r.getCounselor().getName());
+        }
+
+        // 서비스 항목
+        if (r.getServiceItem() != null) {
+            res.setServiceItemId(r.getServiceItem().getId());
+        }
         res.setReservationTime(r.getReservationTime());
         res.setStatus(r.getReservationStatus());
         res.setNote(r.getNote());

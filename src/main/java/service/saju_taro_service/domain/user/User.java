@@ -3,6 +3,7 @@ package service.saju_taro_service.domain.user;
 import jakarta.persistence.*;
 import lombok.*;
 import service.saju_taro_service.domain.common.BaseTimeEntity;
+import service.saju_taro_service.domain.profile.Profile;
 
 @Entity
 @Table(name = "users")
@@ -17,6 +18,9 @@ public class User extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @OneToOne(mappedBy = "counselor", fetch = FetchType.LAZY)
+    private Profile profile;
+
     @Column(nullable = false, length = 100)
     private String name;
 
@@ -24,7 +28,7 @@ public class User extends BaseTimeEntity {
     private String email;
 
     @Column(nullable = false, length = 50, unique = true)
-    private String nickname = "User";
+    private String nickname = "사용자";
 
     @Column(nullable = false, length = 255)
     private String password;
@@ -44,4 +48,14 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "review_count")
     private Integer reviewCount = 0;
+
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+    public String getFcmToken() {
+        return this.fcmToken;
+    }
 }

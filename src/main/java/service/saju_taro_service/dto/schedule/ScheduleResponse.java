@@ -17,7 +17,7 @@ public class ScheduleResponse {
     public static ScheduleResponse fromEntity(Schedule schedule){
         ScheduleResponse res = new ScheduleResponse();
         res.setId(schedule.getId());
-        res.setCounselorId(schedule.getCounselorId());
+        res.setCounselorId(schedule.getCounselor().getId());
         res.setStartTime(schedule.getStartTime());
         res.setEndTime(schedule.getEndTime());
         res.setAvailable(schedule.isAvailable());

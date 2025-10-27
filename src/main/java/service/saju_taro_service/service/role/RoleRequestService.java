@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import service.saju_taro_service.domain.role.RoleRequest;
 import service.saju_taro_service.domain.user.User;
 import service.saju_taro_service.domain.user.UserRole;
+import service.saju_taro_service.global.exception.CustomException;
+import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.repository.RoleRequestRepository;
 import service.saju_taro_service.repository.UserRepository;
 
@@ -50,28 +52,32 @@ public class RoleRequestService {
     @Transactional
     public void approveRequest(Long requestId) {
         RoleRequest req = roleRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"요청 없음"));
 
         if (req.getStatus() != RoleRequest.RequestStatus.PENDING)
-            throw new IllegalStateException("이미 처리된 요청입니다.");
+            throw new CustomException(ErrorCode.RESERVATION_ALREADY_COMPLETED,"이미 처리된 요청입니다.");
 
         User user = userRepository.findById(req.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND,"사용자 없음"));
 
         user.setUserRole(req.getRequestedRole());
+        userRepository.save(user);
+
         req.setStatus(RoleRequest.RequestStatus.APPROVED);
+        roleRequestRepository.save(req);
     }
 
     /** 관리자: 요청 거절 */
     @Transactional
     public void rejectRequest(Long requestId) {
         RoleRequest req = roleRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"요청 없음"));
 
         if (req.getStatus() != RoleRequest.RequestStatus.PENDING)
-            throw new IllegalStateException("이미 처리된 요청입니다.");
+            throw new CustomException(ErrorCode.RESERVATION_ALREADY_COMPLETED,"이미 처리된 요청입니다.");
 
         req.setStatus(RoleRequest.RequestStatus.REJECTED);
+        roleRequestRepository.save(req);
     }
 
 

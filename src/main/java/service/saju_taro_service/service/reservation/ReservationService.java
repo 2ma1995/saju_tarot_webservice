@@ -3,17 +3,23 @@ package service.saju_taro_service.service.reservation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import service.saju_taro_service.domain.notification.NotificationType;
 import service.saju_taro_service.domain.reservation.Reservation;
 import service.saju_taro_service.domain.reservation.ReservationStatus;
 import service.saju_taro_service.domain.schedule.Schedule;
+import service.saju_taro_service.domain.serviceItem.ServiceItem;
 import service.saju_taro_service.domain.user.User;
 import service.saju_taro_service.dto.reservation.ReservationRequest;
 import service.saju_taro_service.dto.reservation.ReservationResponse;
+import service.saju_taro_service.global.event.EventPublisher;
+import service.saju_taro_service.global.event.NotificationEvent;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.repository.ReservationRepository;
 import service.saju_taro_service.repository.ScheduleRepository;
+import service.saju_taro_service.repository.ServiceItemRepository;
 import service.saju_taro_service.repository.UserRepository;
+import service.saju_taro_service.service.notification.NotificationService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,7 +31,9 @@ import java.util.List;
 public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ScheduleRepository scheduleRepository;
+    private final ServiceItemRepository serviceItemRepository;
     private final UserRepository userRepository;
+    private final EventPublisher eventPublisher;
 
     /**
      * ✅ 예약 생성
@@ -33,6 +41,17 @@ public class ReservationService {
     @Transactional
     public ReservationResponse createReservation(Long userId, ReservationRequest req) {
         if (userId == null) throw new SecurityException("로그인이 필요합니다.");
+
+        // 유저 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        User counselor = userRepository.findById(req.getCounselorId())
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "상담사를 찾을 수 없습니다."));
+
+        // 서비스 항목 조회
+        ServiceItem serviceItem = serviceItemRepository.findById(req.getServiceItemId())
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "서비스를 찾을 수 없습니다."));
 
         // 스케줄 존재 여부 확인
         Schedule schedule = scheduleRepository.findById(req.getScheduleId())
@@ -49,17 +68,30 @@ public class ReservationService {
 
         // 예약 생성
         Reservation reservation = Reservation.builder()
-                .userId(userId)
-                .counselorId(req.getCounselorId())
-                .serviceItemId(req.getServiceItemId())
-                .scheduleId(req.getScheduleId())
+                .user(user)
+                .counselor(counselor)
+                .serviceItem(serviceItem)
+                .schedule(schedule)
                 .reservationTime(req.getReservationTime())
                 .note(req.getNote())
                 .reservationStatus(ReservationStatus.RESERVED)
                 .isActive(true)
                 .build();
 
-        return ReservationResponse.fromEntity(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+
+        // 알림로직 / 비동기 알림 이벤트 발행
+        String timeText = req.getReservationTime().toLocalDate() + " " + req.getReservationTime().toLocalTime();
+
+        eventPublisher.publishNotification(new NotificationEvent(
+                user.getId(), counselor.getId(), NotificationType.RESERVATION,
+                "[예약 완료] " + timeText + " 상담 예약이 접수되었습니다."));
+
+        eventPublisher.publishNotification(new NotificationEvent(
+                counselor.getId(), counselor.getId(), NotificationType.RESERVATION,
+                "[신규 예약] " + timeText + " 상담 예약이 들어왔습니다."));
+
+        return ReservationResponse.fromEntity(saved);
     }
 
     /**
@@ -120,14 +152,11 @@ public class ReservationService {
                         !r.getReservationTime().isAfter(end))
                 .toList();
 
-        // ✅ 사용자 이름/전화번호 포함하여 반환
+        // 사용자 이름/전화번호 포함하여 반환
         return reservations.stream()
-                .map(r -> {
-                    User user = userRepository.findById(r.getUserId()).orElse(null);
-                    String name = (user != null) ? user.getName() : "알 수 없음";
-                    String phone = (user != null) ? user.getPhone() : "-";
-                    return ReservationResponse.fromEntityWithUser(r, name, phone);
-                })
+                .map(r -> ReservationResponse.fromEntityWithUser(r,
+                        r.getUser() != null ? r.getUser().getName() : "알수 없음",
+                        r.getUser() != null ? r.getUser().getPhone() : "-"))
                 .toList();
     }
 
@@ -143,14 +172,24 @@ public class ReservationService {
             throw new CustomException(ErrorCode.RESERVATION_ALREADY_COMPLETED, "이미 완료된 예약은 취소할 수 없습니다.");
 
         //  스케줄 복원
-        if (r.getScheduleId() != null) {
-            scheduleRepository.findById(r.getScheduleId()).ifPresent(schedule -> {
-                schedule.setAvailable(true);
-                scheduleRepository.save(schedule);
-            });
+        if (r.getSchedule() != null) {
+            Schedule schedule = r.getSchedule();
+            schedule.setAvailable(true);
+            scheduleRepository.save(schedule);
         }
-        // 예약 상태 변경
-        r.setReservationStatus(ReservationStatus.CANCELED);
+
+        // 예약 상태 변경₩
+        r.setReservationStatus(ReservationStatus.CANCELLED);
+
+        // 알림 이벤트 발행
+        String timeText = r.getReservationTime().toLocalDate() + " " + r.getReservationTime().toLocalTime();
+        eventPublisher.publishNotification(new NotificationEvent(
+                r.getUser().getId(), r.getCounselor().getId(), NotificationType.CANCEL,
+                "[예약 취소] " + timeText + " 상담 예약이 취소되었습니다."));
+        eventPublisher.publishNotification(new NotificationEvent(
+                r.getCounselor().getId(), r.getCounselor().getId(), NotificationType.CANCEL,
+                "[예약 취소] " + timeText + " 상담 예약이 취소되었습니다.")
+        );
     }
 
     /**
@@ -163,7 +202,7 @@ public class ReservationService {
 
         // 이미 취소나 완료된 예약은 재변경 불가
         if (r.getReservationStatus() == ReservationStatus.COMPLETED ||
-                r.getReservationStatus() == ReservationStatus.CANCELED) {
+            r.getReservationStatus() == ReservationStatus.CANCELLED) {
             throw new CustomException(ErrorCode.BAD_REQUEST, "이미 종료된 예약은 변경할 수 없습니다.");
         }
 
@@ -171,11 +210,21 @@ public class ReservationService {
         r.setReservationStatus(newStatus);
 
         // 예약 취소 시 스케줄 다시 열기
-        if (newStatus == ReservationStatus.CANCELED && r.getScheduleId() != null) {
-            scheduleRepository.findById(r.getScheduleId()).ifPresent(s -> {
-                s.setAvailable(true);
-                scheduleRepository.save(s);
-            });
+        if (newStatus == ReservationStatus.CANCELLED && r.getSchedule() != null) {
+            Schedule schedule = r.getSchedule();
+            schedule.setAvailable(true);
+            scheduleRepository.save(schedule);
+        }
+
+        // 완료 시 알림
+        if (newStatus == ReservationStatus.COMPLETED) {
+            String timeText = r.getReservationTime().toLocalDate() + " " + r.getReservationTime().toLocalTime();
+            eventPublisher.publishNotification(new NotificationEvent(
+                    r.getUser().getId(), r.getCounselor().getId(), NotificationType.COMPLETE,
+                    "[상담 완료] " + timeText + " 상담이 완료되었습니다. 리뷰를 남겨주세요."));
+            eventPublisher.publishNotification(new NotificationEvent(
+                    r.getCounselor().getId(), r.getCounselor().getId(), NotificationType.COMPLETE,
+                    "[상담 완료] " + timeText + " 상담이 완료되었습니다."));
         }
     }
 }

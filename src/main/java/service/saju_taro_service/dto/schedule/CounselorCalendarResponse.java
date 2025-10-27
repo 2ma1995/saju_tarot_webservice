@@ -56,8 +56,8 @@ public class CounselorCalendarResponse {
 
         // scheduleId -> reservation 매핑 (빠른 조회용, NPE 방지)
         Map<Long, Reservation> reservationByScheduleId = reservations.stream()
-                .filter(r -> r.getScheduleId() != null)
-                .collect(Collectors.toMap(Reservation::getScheduleId, r -> r, (a, b) -> a)); // 충돌시 첫 값
+                .filter(r -> r.getSchedule() != null)
+                .collect(Collectors.toMap(r->r.getSchedule().getId(), r -> r, (a, b) -> a)); // 충돌시 첫 값
 
         List<DaySchedule> days = new ArrayList<>();
 
@@ -90,7 +90,7 @@ public class CounselorCalendarResponse {
         }
 
         return CounselorCalendarResponse.builder()
-                .counselorId(schedules.isEmpty() ? null : schedules.get(0).getCounselorId())
+                .counselorId(schedules.isEmpty() ? null : schedules.get(0).getCounselor().getId())
                 .month(start.getYear() + "-" + String.format("%02d", start.getMonthValue()))
                 .days(days)
                 .build();

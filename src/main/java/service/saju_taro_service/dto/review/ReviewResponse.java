@@ -21,10 +21,10 @@ public class ReviewResponse {
     public static ReviewResponse fromEntity(Review review, User user) {
         ReviewResponse res = new ReviewResponse();
         res.setId(review.getId());
-        res.setUserId(review.getUserId());
+        res.setUserId(review.getUser().getId());
         res.setNickname(user != null ? user.getName() : "탈퇴한 사용자");
-        res.setReservationId(review.getReservationId());
-        res.setCounselorId(review.getCounselorId());
+        res.setReservationId(review.getReservation().getId());
+        res.setCounselorId(review.getCounselor().getId());
         res.setRating(review.getRating());
         res.setComment(review.getComment());
         res.setCreatedAt(review.getCreatedAt());

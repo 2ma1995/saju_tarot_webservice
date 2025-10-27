@@ -41,4 +41,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
         WHERE u.userRole = 'COUNSELOR' AND u.isActive = true
     """)
     Page<User> findAllActiveCounselors(Pageable pageable);
+
+    Optional<User> findByFcmToken(String fcmToken);
 }

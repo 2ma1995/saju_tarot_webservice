@@ -10,8 +10,6 @@ import service.saju_taro_service.repository.ReservationRepository;
 import service.saju_taro_service.repository.ScheduleRepository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
@@ -48,7 +46,7 @@ public class CounselorCalendarService {
             // 사용자는 예약된 것만 보이게 (회색)
             schedules = schedules.stream()
                     .filter(s -> reservations.stream()
-                            .anyMatch(r -> r.getScheduleId() != null && r.getScheduleId().equals(s.getId())))
+                            .anyMatch(r -> r.getSchedule() != null && r.getSchedule().getId().equals(s.getId())))
                     .sorted(Comparator.comparing(Schedule::getStartTime))
                     .toList();
         } else if ("COUNSELOR".equals(role)) {

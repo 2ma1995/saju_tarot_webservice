@@ -3,6 +3,9 @@ package service.saju_taro_service.domain.reservation;
 import jakarta.persistence.*;
 import lombok.*;
 import service.saju_taro_service.domain.common.BaseTimeEntity;
+import service.saju_taro_service.domain.schedule.Schedule;
+import service.saju_taro_service.domain.serviceItem.ServiceItem;
+import service.saju_taro_service.domain.user.User;
 
 import java.time.LocalDateTime;
 
@@ -16,17 +19,21 @@ public class Reservation extends BaseTimeEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id",nullable = false)
-    private Long userId; // 예약자
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user; // 예약자
 
-    @Column(nullable = false)
-    private Long counselorId; // 상담사
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counselor_id", nullable = false)
+    private User counselor; // 상담사
 
-    @Column(name = "schedule_id")
-    private Long scheduleId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "schedule_id")
+    private Schedule schedule;
 
-    @Column(name = "service_item_id",nullable = false)
-    private Long serviceItemId; // 상담 서비스 ID
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_item_id", nullable = false)
+    private ServiceItem serviceItem; // 상담 서비스 ID
 
     @Column(name = "reservation_time",nullable = false)
     private LocalDateTime reservationTime; // 예약 일시

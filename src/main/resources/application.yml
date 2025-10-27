@@ -1,9 +1,40 @@
+file:
+  upload-dir: ./uploads
+
 spring:
   datasource:
     url: jdbc:mariadb://localhost:3306/saju_db
     username: root
-    password: 1234
+    password:
     driver-class-name: org.mariadb.jdbc.Driver
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: @gmail.com
+    password:
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+toss:
+  client-key: test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm
+  secret-key: test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6
+  base-url: https://api.tosspayments.com/v1/payments
+  confirm-endpoint: /confirm
+  cancel-endpoint: /%s/cancel
+
 
 jpa:
   hibernate:

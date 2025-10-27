@@ -3,6 +3,7 @@ package service.saju_taro_service.domain.schedule;
 import jakarta.persistence.*;
 import lombok.*;
 import service.saju_taro_service.domain.common.BaseTimeEntity;
+import service.saju_taro_service.domain.user.User;
 
 import java.time.LocalDateTime;
 
@@ -18,8 +19,9 @@ public class Schedule extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "couneslor_id", nullable = false)
-    private Long counselorId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counselor_id", nullable = false)
+    private User counselor;
 
     @Column(nullable = false)
     private LocalDateTime startTime;
