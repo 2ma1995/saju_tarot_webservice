@@ -60,10 +60,10 @@ public class ReservationController {
                     content = @Content(schema = @Schema(example = """
                 {
                   "counselorId": 5,
-                  "date": "2025-10-30",
-                  "startTime": "14:00",
-                  "endTime": "15:00",
-                  "paymentMethod": "CARD"
+                  "serviceItemId": 1,
+                  "scheduleId": 101,
+                  "reservationTime": "2025-10-30T14:00:00",
+                  "note": "진호 상담 부탁드립니다."
                 }
                 """))
             )
@@ -188,7 +188,7 @@ public class ReservationController {
             @RequestBody Map<String, String> body
     ) {
         String role = SecurityUtil.currentRole();
-        if (!"COUNSELOR".equals(role)) {
+        if (!"COUNSELOR".equals(role)&& !"ADMIN".equals(role)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED, "상담사만 상태를 변경할 수 있습니다.");
         }
 
@@ -233,29 +233,4 @@ public class ReservationController {
         return ResponseEntity.ok("예약이 취소되었습니다.");
     }
 
-    // 관리자/상담사 - 예약 상태 직접 변경
-    @Operation(
-            summary = "예약 상태 변경 (관리자/상담사 공용)",
-            description = """
-                    관리자나 상담사가 예약 상태를 직접 변경합니다.  
-                    상태값은 QueryParam으로 전달됩니다.
-                    """
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "상태 변경 성공",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(example = "\"예약 상태가 변경되었습니다.\""))),
-            @ApiResponse(responseCode = "403", description = "권한 없음", content = @Content)
-    })
-    @PutMapping("/{reservationId}/status")
-    public ResponseEntity<?> updateStatus(@Parameter(description = "예약 ID", example = "15") @PathVariable Long reservationId,
-                                          @Parameter(description = "변경할 상태 (예: CONFIRMED, CANCELLED, COMPLETED)", example = "CONFIRMED")
-                                          @RequestParam ReservationStatus status) {
-        String role = SecurityUtil.currentRole();
-        if (!"COUNSELOR".equals(role) && !"ADMIN".equals(role)) {
-            throw new CustomException(ErrorCode.ACCESS_DENIED);
-        }
-        reservationService.updateStatus(reservationId, status);
-        return ResponseEntity.ok("예약 상태가 변경되었습니다.");
-    }
 }

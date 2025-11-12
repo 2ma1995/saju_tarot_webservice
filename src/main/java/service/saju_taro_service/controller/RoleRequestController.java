@@ -10,10 +10,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import service.saju_taro_service.domain.role.RoleRequest;
+import service.saju_taro_service.dto.role.RoleRequestResponse;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.util.SecurityUtil;
 import service.saju_taro_service.service.role.RoleRequestService;
+
+import java.util.List;
 
 @Tag(name = "Role Request API", description = "사용자 → 상담사 역할 전환 및 관리자 승인/거절 기능")
 @RestController
@@ -60,16 +64,10 @@ public class RoleRequestController {
                                     [
                                       {
                                         "requestId": 1,
-                                        "userId": 101,
                                         "userName": "홍길동",
+                                        "userEmail": "hong@email.com",
+                                        "userNumber": "010-1234-5678",
                                         "requestedAt": "2025-10-26T12:34:56",
-                                        "status": "PENDING"
-                                      },
-                                      {
-                                        "requestId": 2,
-                                        "userId": 102,
-                                        "userName": "이혜림",
-                                        "requestedAt": "2025-10-26T13:00:00",
                                         "status": "PENDING"
                                       }
                                     ]
@@ -78,9 +76,12 @@ public class RoleRequestController {
     })
     @GetMapping("/requests")
     public ResponseEntity<?> getPendingRequests() {
-        String role = SecurityUtil.currentRole();
         validateAdmin();
-        return ResponseEntity.ok(roleRequestService.getPendingRequests());
+        List<RoleRequest> list = roleRequestService.getPendingRequests();
+        List<RoleRequestResponse> dto = list.stream()
+                .map(RoleRequestResponse::fromEntity)
+                .toList();
+        return ResponseEntity.ok(dto);
     }
 
     /**

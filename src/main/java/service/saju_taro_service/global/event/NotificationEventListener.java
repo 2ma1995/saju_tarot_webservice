@@ -33,31 +33,37 @@ public class NotificationEventListener {
     public void handleNotificationEvent(NotificationEvent event) {
         log.info("📬 NotificationEvent received: {}", event.getType());
 
-        // 1️⃣ DB 저장 (내부 알림)
-        Notification n = Notification.builder()
-                .userId(event.getUserId())
-                .counselorId(event.getCounselorId())
-                .type(event.getType())
-                .message(event.getMessage())
-                .isRead(false)
-                .build();
-        notificationRepository.save(n);
-
-        // 2️⃣ FCM 전송
         try {
+            // 대상 유저 및 상담사 조회
             User targetUser = userRepository.findById(event.getUserId()).orElse(null);
-            if (targetUser == null || targetUser.getFcmToken() == null || targetUser.getFcmToken().isBlank()) {
-                log.info("⚠️ FCM skipped: no valid token for userId={}", event.getUserId());
-            }else {
-                sendFcmWithRetry(event, targetUser.getFcmToken(), 0);
+            User counselor = userRepository.findById(event.getCounselorId()).orElse(null);
+            if (targetUser == null) {
+                log.warn("⚠️ Notification skipped: user not found (id={})", event.getUserId());
+                return;
             }
-            // 이메일 발송
-            if (targetUser != null && targetUser.getEmail() != null && !targetUser.getEmail().isBlank()) {
+        // 1️⃣ DB 저장 (내부 알림)
+            Notification n = Notification.builder()
+                    .user(targetUser)
+                    .counselor(counselor)
+                    .type(event.getType())
+                    .message(event.getMessage())
+                    .isRead(false)
+                    .build();
+            notificationRepository.save(n);
+
+            // 2️⃣ FCM 발송
+            if (targetUser.getFcmToken() != null && !targetUser.getFcmToken().isBlank()) {
+                sendFcmWithRetry(event, targetUser.getFcmToken(), 0);
+            } else {
+                log.info("⚠️ FCM skipped: no token for userId={}", targetUser.getId());
+            }
+
+            // 3️⃣ 이메일 발송
+            if (targetUser.getEmail() != null && !targetUser.getEmail().isBlank()) {
                 sendEmail(event, targetUser);
             }
-
         } catch (Exception e) {
-            log.error("❌ FCM preparation failed. userId=" + event.getUserId(), e);
+            log.error("❌ Notification processing failed for event={}", event, e);
         }
     }
 
@@ -79,7 +85,7 @@ public class NotificationEventListener {
                     .putData("counselorId", String.valueOf(event.getCounselorId()))
                     .build();
 
-            FirebaseMessaging.getInstance().send(message);
+            firebaseMessaging.send(message);
             log.info("✅ FCM sent successfully to token={}, type={}", token, event.getType());
 
         } catch (FirebaseMessagingException e) {
@@ -87,21 +93,18 @@ public class NotificationEventListener {
             log.warn("⚠️ FCM send failed: code={} (attempt={})", errorCode, retryCount + 1);
 
             // ❌ 1) 유효하지 않은 토큰은 즉시 삭제
-            if ("registration-token-not-registered".equals(errorCode)
-                    || "invalid-argument".equals(errorCode)
-                    || "invalid-registration-token".equals(errorCode)) {
+            if (isInvalidToken(errorCode)){
                 invalidateUserToken(token);
                 return;
             }
 
             // 🔁 2) 네트워크/서버 오류면 재시도 (최대 3회)
             if (retryCount < 3 && shouldRetry(errorCode)) {
-                int nextAttempt = retryCount + 1;
-                long delayMs = (long) (Math.pow(2, nextAttempt) * 500L); // 0.5s → 1s → 2s → 4s
                 try {
-                    Thread.sleep(delayMs);
-                } catch (InterruptedException ignored) {}
-                sendFcmWithRetry(event, token, nextAttempt);
+                    Thread.sleep((long)Math.pow(2, retryCount+1) * 500L);
+                } catch (InterruptedException ignored) {
+                }
+                sendFcmWithRetry(event, token, retryCount + 1);
             } else {
                 log.error("❌ FCM send failed permanently: code={}, message={}", errorCode, e.getMessage());
             }
@@ -117,9 +120,9 @@ public class NotificationEventListener {
     private boolean shouldRetry(String errorCode) {
         return errorCode != null && (
                 errorCode.contains("internal") ||
-                        errorCode.contains("unavailable") ||
-                        errorCode.contains("server") ||
-                        errorCode.contains("timeout")
+                errorCode.contains("unavailable") ||
+                errorCode.contains("server") ||
+                errorCode.contains("timeout")
         );
     }
 
@@ -127,16 +130,17 @@ public class NotificationEventListener {
      * 🚫 토큰 무효화 (DB에서 제거)
      */
     private void invalidateUserToken(String token) {
-        try {
-            User user = userRepository.findByFcmToken(token).orElse(null);
-            if (user != null) {
-                user.setFcmToken(null);
-                userRepository.save(user);
-                log.info("🧹 Invalid FCM token removed for userId={}", user.getId());
-            }
-        } catch (Exception e) {
-            log.error("❌ Failed to remove invalid FCM token: {}", token, e);
-        }
+        userRepository.findByFcmToken(token).ifPresent(user -> {
+            user.setFcmToken(null);
+            userRepository.save(user);
+            log.info("🧹 Removed invalid FCM token for userId={}", user.getId());
+        });
+    }
+
+    private boolean isInvalidToken(String errorCode) {
+        return "registration-token-not-registered".equals(errorCode)
+                || "invalid-argument".equals(errorCode)
+                || "invalid-registration-token".equals(errorCode);
     }
 
     /**
@@ -145,7 +149,7 @@ public class NotificationEventListener {
     private String getTitle(NotificationType type) {
         return switch (type) {
             case RESERVATION -> "예약 완료";
-            case CANCEL  -> "예약 취소";
+            case CANCEL -> "예약 취소";
             case COMPLETE -> "상담 완료";
             case PAYMENT -> "결제 완료";
             case REFUND -> "환불 완료";
@@ -153,7 +157,9 @@ public class NotificationEventListener {
     }
 
 
-    /** 📩 이메일 발송 */
+    /**
+     * 📩 이메일 발송
+     */
     private void sendEmail(NotificationEvent event, User user) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

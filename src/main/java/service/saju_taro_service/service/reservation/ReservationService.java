@@ -40,7 +40,7 @@ public class ReservationService {
      **/
     @Transactional
     public ReservationResponse createReservation(Long userId, ReservationRequest req) {
-        if (userId == null) throw new SecurityException("로그인이 필요합니다.");
+        if (userId == null) throw new CustomException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
 
         // 유저 조회
         User user = userRepository.findById(userId)
@@ -88,8 +88,8 @@ public class ReservationService {
                 "[예약 완료] " + timeText + " 상담 예약이 접수되었습니다."));
 
         eventPublisher.publishNotification(new NotificationEvent(
-                counselor.getId(), counselor.getId(), NotificationType.RESERVATION,
-                "[신규 예약] " + timeText + " 상담 예약이 들어왔습니다."));
+                counselor.getId(), user.getId(), NotificationType.RESERVATION,
+                "[신규 예약] " + user.getName() + "님의 " + timeText + " 상담 예약이 들어왔습니다."));
 
         return ReservationResponse.fromEntity(saved);
     }
@@ -115,7 +115,7 @@ public class ReservationService {
         }
 
         return list.stream()
-                .filter(r -> r.getReservationStatus()==parsedStatus)
+                .filter(r -> r.getReservationStatus() == parsedStatus)
                 .map(ReservationResponse::fromEntity)
                 .toList();
     }
@@ -131,7 +131,9 @@ public class ReservationService {
                 .toList();
     }
 
-    /** ✅ 상담사 - 특정 날짜 예약 목록 조회 (달력 클릭 시, 이름/전화 표시) */
+    /**
+     * ✅ 상담사 - 특정 날짜 예약 목록 조회 (달력 클릭 시, 이름/전화 표시)
+     */
     @Transactional(readOnly = true)
     public List<ReservationResponse> getCounselorReservationsByDay(Long counselorId, String dateStr) {
         LocalDate date;
@@ -184,11 +186,15 @@ public class ReservationService {
         // 알림 이벤트 발행
         String timeText = r.getReservationTime().toLocalDate() + " " + r.getReservationTime().toLocalTime();
         eventPublisher.publishNotification(new NotificationEvent(
-                r.getUser().getId(), r.getCounselor().getId(), NotificationType.CANCEL,
+                r.getUser().getId(),
+                r.getCounselor().getId(),
+                NotificationType.CANCEL,
                 "[예약 취소] " + timeText + " 상담 예약이 취소되었습니다."));
         eventPublisher.publishNotification(new NotificationEvent(
-                r.getCounselor().getId(), r.getCounselor().getId(), NotificationType.CANCEL,
-                "[예약 취소] " + timeText + " 상담 예약이 취소되었습니다.")
+                r.getCounselor().getId(),
+                r.getUser().getId(),
+                NotificationType.CANCEL,
+                "[예약 취소] " + r.getUser().getName() + "님의 " + timeText + " 상담 예약이 취소되었습니다.")
         );
     }
 
@@ -202,7 +208,7 @@ public class ReservationService {
 
         // 이미 취소나 완료된 예약은 재변경 불가
         if (r.getReservationStatus() == ReservationStatus.COMPLETED ||
-            r.getReservationStatus() == ReservationStatus.CANCELLED) {
+                r.getReservationStatus() == ReservationStatus.CANCELLED) {
             throw new CustomException(ErrorCode.BAD_REQUEST, "이미 종료된 예약은 변경할 수 없습니다.");
         }
 

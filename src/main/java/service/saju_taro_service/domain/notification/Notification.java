@@ -18,11 +18,11 @@ public class Notification extends BaseTimeEntity {
     // 수신자
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User userId;
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "counselor_id", nullable = false)
-    private User counselorId;
+    private User counselor;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

@@ -7,10 +7,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import service.saju_taro_service.dto.auth.AuthRequest;
+import service.saju_taro_service.dto.user.RefreshTokenRequest;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.util.SecurityUtil;
@@ -33,8 +35,7 @@ public class AuthController {
             description = """
                     사용자가 이메일과 비밀번호를 입력해 로그인합니다. 
                     성공 시 Access Token과 Refresh Token을 반환합니다.
-                    """
-    )
+                    """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그인 성공",
                     content = @Content(mediaType = "application/json",
@@ -88,12 +89,8 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content)
     })
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshAccessToken(
-            @Parameter(description = "사용자 ID", example = "1")
-            @RequestParam Long userId,
-            @Parameter(description = "Refresh Token", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-            @RequestParam String refreshToken) {
-        String newAccessToken = authService.refreshAccessToken(userId, refreshToken);
+    public ResponseEntity<?> refreshAccessToken(@Valid @RequestBody RefreshTokenRequest req) {
+        String newAccessToken = authService.refreshAccessToken(req.getRefreshToken());
         return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
     }
 

@@ -18,7 +18,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Optional<Review> findByReservationId(Long reservationId);
 
     //평점 계산
-    @Query("SELECT coalesce(avg(r.rating),0)from Review r where r.counselorId = :counselorId and r.isActive=true ")
+    @Query("SELECT coalesce(avg(r.rating),0) FROM Review r WHERE r.counselor.id = :counselorId AND r.isActive = true")
     Double getAverageRatingByCounselor(@Param("counselorId") Long counselorId);
 
     Long countByCounselorIdAndIsActiveTrue(Long counselorId);

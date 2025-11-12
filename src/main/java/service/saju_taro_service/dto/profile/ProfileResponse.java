@@ -4,6 +4,8 @@ import lombok.*;
 import service.saju_taro_service.domain.profile.Profile;
 import service.saju_taro_service.dto.review.ReviewResponse;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Getter @Setter
@@ -15,7 +17,7 @@ public class ProfileResponse {
     private String counselorName;
     private String bio;
     private String experience;
-    private String tags;
+    private List<String> tags;
     private String imageUrl;
     private String createdAt;
     private Double averageRating;   // ⭐ 평균 평점
@@ -28,13 +30,19 @@ public class ProfileResponse {
     }
 
     public static ProfileResponse fromEntity(Profile p, Double avgRating, Integer reviewCount, List<ReviewResponse> reviewList) {
+        // ✅ DB의 "타로,연애,진로" → ["타로", "연애", "진로"] 변환
+        List<String> tagList = new ArrayList<>();
+        if (p.getTags() != null && !p.getTags().isBlank()) {
+            tagList = Arrays.asList(p.getTags().split(","));
+        }
+
         return ProfileResponse.builder()
                 .id(p.getId())
                 .counselorId(p.getCounselor().getId())
                 .counselorName(p.getCounselor().getName())
                 .bio(p.getBio())
                 .experience(p.getExperience())
-                .tags(p.getTags())
+                .tags(tagList)
                 .imageUrl(p.getImageUrl())
                 .createdAt(p.getCreatedAt().toString())
                 .averageRating(avgRating)

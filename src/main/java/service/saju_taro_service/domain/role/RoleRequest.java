@@ -27,8 +27,4 @@ public class RoleRequest extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column( nullable = false, length = 10)
     private RequestStatus status = RequestStatus.PENDING;
-
-    public enum RequestStatus {
-        PENDING,APPROVED,REJECTED
-    }
 }

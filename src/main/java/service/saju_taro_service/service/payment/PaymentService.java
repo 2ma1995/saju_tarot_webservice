@@ -14,6 +14,8 @@ import service.saju_taro_service.domain.user.User;
 import service.saju_taro_service.dto.payment.PaymentResponse;
 import service.saju_taro_service.global.event.EventPublisher;
 import service.saju_taro_service.global.event.NotificationEvent;
+import service.saju_taro_service.global.exception.CustomException;
+import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.toss.TossPaymentsClient;
 import service.saju_taro_service.repository.PaymentRepository;
 import service.saju_taro_service.repository.ReservationRepository;
@@ -30,19 +32,22 @@ import java.util.UUID;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
-    private final UserRepository userRepository;
     private final EventPublisher eventPublisher;
     private final TossPaymentsClient tossPaymentsClient;
 
     /** ✅ 결제 요청 생성 (예약 직후) */
     @Transactional
     public Payment createPayment(Long reservationId, int amount) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "예약 정보를 찾을수 없습니다."));
+
         Payment payment = new Payment();
-        payment.setReservationId(reservationId);
+        payment.setReservation(reservation);
         payment.setAmount(amount);
         payment.setPaymentStatus(PaymentStatus.PENDING);
         payment.setTransactionId(UUID.randomUUID().toString());
         payment.setMethod(PaymentMethod.CARD);
+
         return paymentRepository.save(payment);
     }
 
@@ -52,27 +57,16 @@ public class PaymentService {
     @Transactional
     public void completePayment(String txId) {
         Payment payment = paymentRepository.findByTransactionId(txId)
-                .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
+
         payment.setPaymentStatus(PaymentStatus.PAID);
         payment.setPaidAt(LocalDateTime.now());
         paymentRepository.save(payment);
 
         // 🔹 Reservation 상태 변경
-        Reservation reservation = reservationRepository.findById(payment.getReservationId())
-                .orElseThrow(() -> new IllegalArgumentException("예약 정보를 찾을 수 없습니다."));
+        Reservation reservation = payment.getReservation();
         reservation.setReservationStatus(ReservationStatus.CONFIRMED);
         reservationRepository.save(reservation);
-
-        // 🔔 알림 발행 (결제 완료)
-        User user = userRepository.findById(reservation.getUserId()).orElse(null);
-        if (user != null) {
-            eventPublisher.publishNotification(new NotificationEvent(
-                    user.getId(),
-                    reservation.getCounselorId(),
-                    NotificationType.PAYMENT,
-                    "[결제 완료] 예약 #" + reservation.getId() + "의 결제가 완료되었습니다. 금액: " + payment.getAmount() + "원"
-            ));
-        }
 
         // 🔹 알림 발행 (사용자 + 상담사)
         triggerPaymentNotification(reservation, payment);
@@ -82,26 +76,17 @@ public class PaymentService {
     @Transactional
     public void refundPayment(String txId) {
         Payment payment = paymentRepository.findByTransactionId(txId)
-                .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
+
         payment.setPaymentStatus(PaymentStatus.REFUND);
         paymentRepository.save(payment);
 
         // 🔹 환불 시 예약 상태 취소로 변경
-        Reservation reservation = reservationRepository.findById(payment.getReservationId())
-                .orElseThrow(() -> new IllegalArgumentException("예약 정보를 찾을 수 없습니다."));
+        Reservation reservation = payment.getReservation();
         reservation.setReservationStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
 
-        // 🔔 알림 발행 (환불 완료)
-        User user = userRepository.findById(reservation.getUserId()).orElse(null);
-        if (user != null) {
-            eventPublisher.publishNotification(new NotificationEvent(
-                    user.getId(),
-                    reservation.getCounselorId(),
-                    NotificationType.REFUND,
-                    "[환불 완료] 예약 #" + reservation.getId() + "의 결제가 취소되고 환불되었습니다. 금액: " + payment.getAmount() + "원"
-            ));
-        }
+        triggerRefundNotification(reservation, payment);
     }
 
     // ==================== Toss Payments 전용 메서드 (신규) ====================
@@ -119,7 +104,7 @@ public class PaymentService {
 
         // 2. DB에서 결제 정보 조회
         Payment payment = paymentRepository.findByTransactionId(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
 
         // 3. 결제 상태 업데이트
         payment.setPaymentStatus(PaymentStatus.PAID);
@@ -135,8 +120,7 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         // 4. 예약 상태 변경
-        Reservation reservation = reservationRepository.findById(payment.getReservationId())
-                .orElseThrow(() -> new IllegalArgumentException("예약 정보를 찾을 수 없습니다."));
+        Reservation reservation = payment.getReservation();
         reservation.setReservationStatus(ReservationStatus.CONFIRMED);
         reservationRepository.save(reservation);
 
@@ -154,14 +138,14 @@ public class PaymentService {
     @Transactional
     public void refundTossPayment(String txId, String reason) {
         Payment payment = paymentRepository.findByTransactionId(txId)
-                .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
 
         if (payment.getPaymentStatus() != PaymentStatus.PAID) {
-            throw new IllegalStateException("결제 완료 상태에서만 환불이 가능합니다.");
+            throw new CustomException(ErrorCode.BAD_REQUEST,"결제 완료 상태에서만 환불이 가능합니다.");
         }
 
         if (payment.getPaymentKey() == null) {
-            throw new IllegalStateException("결제 키가 없어 환불할 수 없습니다.");
+            throw new CustomException(ErrorCode.BAD_REQUEST,"결제 키가 없어 환불할 수 없습니다.");
         }
 
         // Toss Payments API를 통한 실제 환불 처리
@@ -169,7 +153,7 @@ public class PaymentService {
             tossPaymentsClient.cancelPayment(payment.getPaymentKey(), reason);
         } catch (Exception e) {
             log.error("❌ Toss Payments 환불 실패: {}", e.getMessage());
-            throw new RuntimeException("환불 처리 중 오류가 발생했습니다.");
+            throw new CustomException(ErrorCode.PAYMENT_FAILED,"환불 처리 중 오류가 발생했습니다.");
         }
 
         // DB 상태 업데이트
@@ -177,22 +161,12 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         // 예약 상태 취소로 변경
-        Reservation reservation = reservationRepository.findById(payment.getReservationId())
-                .orElseThrow(() -> new IllegalArgumentException("예약 정보를 찾을 수 없습니다."));
+        Reservation reservation = payment.getReservation();
         reservation.setReservationStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
 
         // 환불 알림 발행
-        User user = userRepository.findById(reservation.getUserId()).orElse(null);
-        if (user != null) {
-            eventPublisher.publishNotification(new NotificationEvent(
-                    user.getId(),
-                    reservation.getCounselorId(),
-                    NotificationType.REFUND,
-                    "[환불 완료] 예약 #" + reservation.getId() + "의 결제가 취소되고 환불되었습니다. 금액: " + payment.getAmount() + "원"
-            ));
-        }
-
+        triggerRefundNotification(reservation, payment);
         log.info("✅ Toss 환불 완료 - txId: {}, reason: {}", txId, reason);
     }
 
@@ -202,10 +176,10 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public List<PaymentResponse> getMyPayments(Long userId) {
         return paymentRepository.findAll().stream()
-                .filter(p -> {
-                    var reservation = reservationRepository.findById(p.getReservationId()).orElse(null);
-                    return reservation != null && reservation.getUserId().equals(userId);
-                })
+                .filter(p -> p.getReservation() != null &&
+                        p.getReservation().getUser() !=null &&
+                        p.getReservation().getUser().getId().equals(userId)
+                        )
                 .map(PaymentResponse::fromEntity)
                 .toList();
     }
@@ -221,13 +195,13 @@ public class PaymentService {
 
     /** ✅ 결제 완료 시 알림 이벤트 발행 */
     private void triggerPaymentNotification(Reservation reservation, Payment payment) {
-        User user = userRepository.findById(reservation.getUserId()).orElse(null);
-        User counselor = userRepository.findById(reservation.getCounselorId()).orElse(null);
+        User user = reservation.getUser();
+        User counselor = reservation.getCounselor();
 
         if (user != null) {
             eventPublisher.publishNotification(new NotificationEvent(
                     user.getId(),
-                    reservation.getCounselorId(),
+                    counselor !=null ? counselor.getId() : null,
                     NotificationType.PAYMENT,
                     "[결제 완료] 예약 #" + reservation.getId() + "의 결제가 완료되었습니다. (" + payment.getAmount() + "원)"
             ));
@@ -236,9 +210,24 @@ public class PaymentService {
         if (counselor != null) {
             eventPublisher.publishNotification(new NotificationEvent(
                     counselor.getId(),
-                    reservation.getCounselorId(),
+                    counselor.getId(),
                     NotificationType.PAYMENT,
                     "[신규 결제] " + (user != null ? user.getName() : "사용자") + "님의 상담 결제가 완료되었습니다."
+            ));
+        }
+    }
+
+    // 환불 알림
+    private void triggerRefundNotification(Reservation reservation, Payment payment) {
+        User user = reservation.getUser();
+        User counselor = reservation.getCounselor();
+
+        if (user!=null){
+            eventPublisher.publishNotification(new NotificationEvent(
+                    user.getId(),
+                    counselor != null? counselor.getId() : null,
+                    NotificationType.REFUND,
+                    "[환불 완료] 예약 #"+reservation.getId()+"의 결제가 환불되었습니다. 금액: "+payment.getAmount()+"원"
             ));
         }
     }

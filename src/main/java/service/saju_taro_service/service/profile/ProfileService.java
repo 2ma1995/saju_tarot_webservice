@@ -32,12 +32,17 @@ public class ProfileService {
     public ProfileResponse saveOrUpdate(Long userId, ProfileRequest req) {
         User counselor = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "상담사를 찾을 수 없습니다."));
+
         Profile profile = profileRepository.findByCounselorId(userId)
                 .orElse(Profile.builder().counselor(counselor).build());
 
         profile.setBio(req.getBio());
         profile.setExperience(req.getExperience());
-        profile.setTags(req.getTags());
+
+        if (req.getTags() != null && !req.getTags().isEmpty()) {
+            profile.setTags(String.join(",", req.getTags()));
+        }
+
         profile.setImageUrl(req.getImageUrl());
 
         Profile saved = profileRepository.save(profile);
@@ -57,7 +62,7 @@ public class ProfileService {
                 .findByCounselorIdAndIsActiveTrueOrderByCreatedAtDesc(counselorId)
                 .stream()
                 .map(r -> {
-                    User u = userRepository.findById(r.getUserId()).orElse(null);
+                    User u = userRepository.findById(r.getUser().getId()).orElse(null);
                     return ReviewResponse.fromEntity(r, u);
                 })
                 .toList();
@@ -105,6 +110,18 @@ public class ProfileService {
                 .toList();
 
         return new PageImpl<>(result, PageRequest.of(page, size), profiles.size());
+    }
+
+    /** ✅ 프로필 이미지만 업데이트 */
+    @Transactional
+    public String updateProfileImage(Long userId, String imageUrl) {
+        Profile profile = profileRepository.findByCounselorId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "프로필을 찾을 수 없습니다."));
+
+        profile.setImageUrl(imageUrl);
+        profileRepository.save(profile);
+
+        return imageUrl;
     }
 
     /** ✅ 태그 전용 검색 */

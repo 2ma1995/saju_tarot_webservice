@@ -39,7 +39,7 @@ public class PaymentScheduler {
         int refundCount = 0;
 
         for (Payment payment : paidPayments) {
-            Reservation reservation = reservationRepository.findById(payment.getReservationId()).orElse(null);
+            Reservation reservation = reservationRepository.findById(payment.getReservation().getId()).orElse(null);
             if (reservation == null) continue;
 
             // 상담이 24시간 이상 미완료 상태면 환불

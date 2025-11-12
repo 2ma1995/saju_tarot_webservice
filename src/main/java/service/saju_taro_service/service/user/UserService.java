@@ -6,13 +6,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import service.saju_taro_service.domain.user.User;
 import service.saju_taro_service.domain.user.UserRole;
-import service.saju_taro_service.dto.user.UpdateNicknameRequest;
 import service.saju_taro_service.dto.user.UserResponse;
 import service.saju_taro_service.dto.user.UserSignupRequest;
 import service.saju_taro_service.dto.user.UserUpdateRequest;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
-import service.saju_taro_service.global.util.SecurityUtil;
 import service.saju_taro_service.repository.UserRepository;
 
 import java.util.List;
@@ -26,24 +24,17 @@ public class UserService {
     @Transactional
     public UserResponse signup(UserSignupRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new IllegalStateException("이미 존재하는 이메일 입니다.");
+            throw new CustomException(ErrorCode.EMAIL_DUPLICATED,"이미 존재하는 이메일 입니다.");
         }
-        // 2️⃣ 닉네임 중복 검사
+        // 2️⃣ 닉네임 중복 검사,
         if (req.getNickname() == null || req.getNickname().isBlank()) {
             throw new CustomException(ErrorCode.BAD_REQUEST, "닉네임을 입력해주세요.");
         }
 
         if (userRepository.existsByNickname(req.getNickname())) {
-            throw new CustomException(ErrorCode.BAD_REQUEST, "이미 사용 중인 닉네임입니다.");
+            throw new CustomException(ErrorCode.NICKNAME_DUPLICATED, "이미 사용 중인 닉네임입니다.");
         }
-        User user = User.builder()
-                .name(req.getName())
-                .nickname(req.getNickname())
-                .email(req.getEmail())
-                .password(passwordEncoder.encode(req.getPassword()))
-                .phone(req.getPhone())
-                .userRole(UserRole.USER)
-                .build();
+        User user = User.create(req, passwordEncoder);
         userRepository.save(user);
         return UserResponse.fromEntity(user);
     }
@@ -53,7 +44,7 @@ public class UserService {
         return userRepository.findById(id)
                 .filter(User::isActive)
                 .map(UserResponse::fromEntity)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND,"사용자를 찾을수 없습니다."));
     }
 
     @Transactional(readOnly = true)
@@ -68,22 +59,20 @@ public class UserService {
     @Transactional
     public UserResponse updateUser(Long id, UserUpdateRequest req, Long tokenUserId, String tokenRole) {
         if (tokenUserId == null){
-            throw new SecurityException("인증 정보가 없습니다.");
+            throw new CustomException(ErrorCode.UNAUTHORIZED,"인증 정보가 없습니다.");
         }
 
         if (!"ADMIN".equals(tokenRole) && !id.equals(tokenUserId)) {
-            throw new SecurityException("본인만 수정할수 있습니다.");
+            throw new CustomException(ErrorCode.ACCESS_DENIED,"본인만 수정할수 있습니다.");
         }
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND,"사용자를 찾을수 없습니다."));
 
         if (!user.isActive()){
-            throw new IllegalStateException("비활성화된 사용자입니다.");
+            throw new CustomException(ErrorCode.BAD_REQUEST,"비활성화된 사용자입니다.");
         }
-
-        user.setName(req.getName());
-        user.setPhone(req.getPhone());
+        user.updateInfo(req.getName(), req.getPhone());
 
         return UserResponse.fromEntity(user);
     }
@@ -92,11 +81,11 @@ public class UserService {
     @Transactional
     public void deactivateUser(Long id,Long tokenUserId, String tokenRole) {
         if (!"ADMIN".equals(tokenRole) && !id.equals(tokenUserId)) {
-            throw new SecurityException("본인만 탈퇴할수 있습니다.");
+            throw new CustomException(ErrorCode.ACCESS_DENIED,"본인만 탈퇴할수 있습니다.");
         }
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-        user.setActive(false);
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND,"사용자를 찾을 수 없습니다."));
+        user.deactivate();
     }
 
 

@@ -129,7 +129,9 @@ public class ProfileController {
     public ResponseEntity<Map<String, String>> uploadImage(
             @Parameter(description = "업로드할 이미지 파일", required = true)
             @RequestParam("file") MultipartFile file) {
+        Long userId = SecurityUtil.currentUserId();
         String imageUrl = uploadService.uploadProfileImage(file);
+        profileService.updateProfileImage(userId, imageUrl);
         return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
     }
 

@@ -145,7 +145,7 @@ public class UserController {
         }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
-        user.setFcmToken(token);
+        user.updateFcmToken(token);
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("updated", true, "userId", user.getId(), "fcmToken", token));
     }

@@ -24,19 +24,19 @@ import java.util.List;
 public class CounselorService {
     private final UserRepository userRepository;
     private final ReviewRepository reviewRepository;
-    private final UserRepository userRepo; // 유저 닉네임조회
 
     // 상담사 목록
     @Transactional(readOnly = true)
     public Page<CounselorResponse> getCounselorList(String sort, int page, int size) {
         // 정렬 기준 매핑
-        Sort sortOption = switch (sort) {
+        Sort sortOption = switch (sort == null ? "" : sort) {
             case "reviews" -> Sort.by(Sort.Direction.DESC, "reviewCount");
             case "recent" -> Sort.by(Sort.Direction.DESC, "updatedAt");
             default -> Sort.by(Sort.Direction.DESC, "averageRating");
         };
 
         PageRequest pageable = PageRequest.of(page, size, sortOption);
+
         return userRepository.findAllActiveCounselors(pageable)
                 .map(CounselorResponse::fromEntity);
     }
@@ -58,20 +58,21 @@ public class CounselorService {
                 .findByCounselorIdAndIsActiveTrue(counselorId, top3)
                 .stream()
                 .map(r -> {
-                    User user = userRepo.findById(r.getUserId()).orElse(null);
-                    return ReviewResponse.fromEntity(r, user);
+                    User reviewer = userRepository.findById(r.getUser().getId()).orElse(null);
+                    return ReviewResponse.fromEntity(r, reviewer);
                 })
                 .toList();
-        return CounselorDetailResponse.fromEntity(counselor, List.of());
+        return CounselorDetailResponse.fromEntity(counselor, reviews);
     }
 
+    // 상담사 후기 전체 조회(페이징)
     @Transactional(readOnly = true)
     public Page<ReviewResponse> getReviewsByCounselor(Long counselorId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Review> reviews = reviewRepository.findByCounselorIdAndIsActiveTrue(counselorId, pageable);
 
         return reviews.map(r -> {
-            User user = userRepository.findById(r.getUserId()).orElse(null);
+            User user = userRepository.findById(r.getUser().getId()).orElse(null);
             return ReviewResponse.fromEntity(r, user);
         });
     }

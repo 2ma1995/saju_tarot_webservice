@@ -11,6 +11,8 @@ import service.saju_taro_service.dto.notification.NotificationResponse;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.repository.NotificationRepository;
+import service.saju_taro_service.domain.user.User;
+import service.saju_taro_service.repository.UserRepository;
 
 import java.util.List;
 
@@ -18,17 +20,23 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationService {
     private final NotificationRepository notificationRepository;
-
+    private final UserRepository userRepository;
     // 공통 생성기
     @Transactional
     public void create(Long userId, Long counselorId, NotificationType type, String message) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        User counselor = userRepository.findById(counselorId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "상담사를 찾을 수 없습니다."));
+
         Notification notification = Notification.builder()
-                .userId(userId)
-                .counselorId(counselorId)
+                .user(user)
+                .counselor(counselor)
                 .type(type)
                 .message(message)
                 .isRead(false)
                 .build();
+
         notificationRepository.save(notification);
     }
 
@@ -61,17 +69,17 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMy(Long userId, int page, int size) {
-        Page<Notification> p = notificationRepository
+        Page<Notification> notifications = notificationRepository
                 .findByUserIdOrderByIdDesc(userId, PageRequest.of(page, size));
-        return p.map(NotificationResponse::fromEntity).getContent();
+        return notifications.map(NotificationResponse::fromEntity).getContent();
     }
 
     @Transactional
     public void markRead(Long id, Long userId) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
-        if (!notification.getUserId().equals(userId)) {
-            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        if (!notification.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED,"본인 알림만 읽음 처리 가능");
         }
         notification.markRead();
     }

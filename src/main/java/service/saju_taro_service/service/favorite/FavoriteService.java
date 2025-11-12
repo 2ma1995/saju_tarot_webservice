@@ -29,7 +29,6 @@ public class FavoriteService {
         var counselor = userRepository.findById(counselorId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "상담사를 찾을 수 없습니다."));
 
-
         if (favoriteRepository.existsByUserIdAndCounselorId(userId, counselorId)) {
             throw new CustomException(ErrorCode.BAD_REQUEST, "이미 즐겨찾기에 등록된 상담사입니다.");
         }

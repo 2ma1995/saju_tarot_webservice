@@ -2,7 +2,7 @@ package service.saju_taro_service.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import service.saju_taro_service.domain.schedule.Schedule;
-
+import service.saju_taro_service.domain.user.User;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,7 +17,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
                                                                                    LocalDateTime start);
 
     // 단순 활성화된 전체 스케줄 조회
-    List<Schedule> findByCounselorIdAndIsAvailableTrueOrderByStartTime(Long counselorId);
+    List<Schedule> findByCounselorAndIsAvailableTrueOrderByStartTime(User counselorId);
 
 }
 

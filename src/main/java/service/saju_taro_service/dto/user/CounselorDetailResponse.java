@@ -1,5 +1,6 @@
 package service.saju_taro_service.dto.user;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import service.saju_taro_service.domain.user.User;
@@ -9,6 +10,7 @@ import java.util.List;
 
 @Getter
 @Setter
+@Builder
 public class CounselorDetailResponse {
     private Long id;
     private String name;
@@ -19,15 +21,15 @@ public class CounselorDetailResponse {
     private List<ReviewResponse> reviews;
 
     public static CounselorDetailResponse fromEntity(User user, List<ReviewResponse> reviews) {
-        CounselorDetailResponse dto = new CounselorDetailResponse();
-        dto.setId(user.getId());
-        dto.setName(user.getName());
-        dto.setEmail(user.getEmail());
-        dto.setPhone(user.getPhone());
-        dto.setAverageRating(user.getAverageRating());
-        dto.setReviewCount(user.getReviewCount());
-        dto.setReviews(reviews);
-        return dto;
+        return CounselorDetailResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .averageRating(user.getAverageRating())
+                .reviewCount(user.getReviewCount())
+                .reviews(reviews)
+                .build();
     }
 }
 

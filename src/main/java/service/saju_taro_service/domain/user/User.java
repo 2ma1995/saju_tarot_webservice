@@ -2,8 +2,10 @@ package service.saju_taro_service.domain.user;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import service.saju_taro_service.domain.common.BaseTimeEntity;
 import service.saju_taro_service.domain.profile.Profile;
+import service.saju_taro_service.dto.user.UserSignupRequest;
 
 @Entity
 @Table(name = "users")
@@ -28,7 +30,7 @@ public class User extends BaseTimeEntity {
     private String email;
 
     @Column(nullable = false, length = 50, unique = true)
-    private String nickname = "사용자";
+    private String nickname ;
 
     @Column(nullable = false, length = 255)
     private String password;
@@ -52,10 +54,38 @@ public class User extends BaseTimeEntity {
     @Column(name = "fcm_token")
     private String fcmToken;
 
-    public void setFcmToken(String fcmToken) {
+    // 비즈니스 로직 메서드로 변경
+    public void updateInfo(String name, String phone) {
+        this.name = name;
+        this.phone = phone;
+    }
+
+    public void deactivate() {
+        this.isActive = false;
+    }
+
+    public void updateFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
     }
-    public String getFcmToken() {
-        return this.fcmToken;
+
+    public void updateRole(UserRole role) {
+        this.userRole = role;
+    }
+
+    public void updateRating(Double averageRating, Integer reviewCount) {
+        this.averageRating = averageRating;
+        this.reviewCount = reviewCount;
+    }
+
+    public static User create(UserSignupRequest req, PasswordEncoder encoder) {
+        return User.builder()
+                .name(req.getName())
+                .nickname(req.getNickname())
+                .email(req.getEmail())
+                .password(encoder.encode(req.getPassword()))
+                .phone(req.getPhone())
+                .userRole(UserRole.USER)
+                .isActive(true) // ✅ Builder로 true를 강제 지정
+                .build();
     }
 }
