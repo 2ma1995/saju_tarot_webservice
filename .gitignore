@@ -1,4 +1,13 @@
 HELP.md
+
+### 🔒 민감 정보 파일 ###
+.env
+*.env
+application-secret.yml
+application-local.yml
+*firebase*.json
+*-firebase-adminsdk-*.json
+
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -35,3 +44,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 추가 보안 및 불필요 파일
+dump.rdb
+uploads/
+node_modules/
+.DS_Storesrc/main/resources/*.json

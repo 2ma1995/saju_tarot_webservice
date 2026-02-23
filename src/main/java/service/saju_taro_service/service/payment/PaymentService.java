@@ -17,9 +17,10 @@ import service.saju_taro_service.global.event.NotificationEvent;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
 import service.saju_taro_service.global.toss.TossPaymentsClient;
+import service.saju_taro_service.domain.schedule.Schedule;
 import service.saju_taro_service.repository.PaymentRepository;
 import service.saju_taro_service.repository.ReservationRepository;
-import service.saju_taro_service.repository.UserRepository;
+import service.saju_taro_service.repository.ScheduleRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +33,7 @@ import java.util.UUID;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
+    private final ScheduleRepository scheduleRepository;
     private final EventPublisher eventPublisher;
     private final TossPaymentsClient tossPaymentsClient;
 
@@ -57,7 +59,7 @@ public class PaymentService {
     @Transactional
     public void completePayment(String txId) {
         Payment payment = paymentRepository.findByTransactionId(txId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "결제 정보를 찾을 수 없습니다."));
 
         payment.setPaymentStatus(PaymentStatus.PAID);
         payment.setPaidAt(LocalDateTime.now());
@@ -76,7 +78,7 @@ public class PaymentService {
     @Transactional
     public void refundPayment(String txId) {
         Payment payment = paymentRepository.findByTransactionId(txId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "결제 정보를 찾을 수 없습니다."));
 
         payment.setPaymentStatus(PaymentStatus.REFUND);
         paymentRepository.save(payment);
@@ -86,6 +88,13 @@ public class PaymentService {
         reservation.setReservationStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
 
+        // 🔹 스케줄 복구 (다시 예약 가능 상태로)
+        if (reservation.getSchedule() != null) {
+            Schedule schedule = reservation.getSchedule();
+            schedule.setAvailable(true);
+            scheduleRepository.save(schedule);
+        }
+
         triggerRefundNotification(reservation, payment);
     }
 
@@ -93,9 +102,10 @@ public class PaymentService {
 
     /**
      * ✅ Toss Payments 결제 승인 처리
+     * 
      * @param paymentKey Toss에서 발급한 결제 키
-     * @param orderId 주문 ID (transactionId)
-     * @param amount 결제 금액
+     * @param orderId    주문 ID (transactionId)
+     * @param amount     결제 금액
      */
     @Transactional
     public void confirmTossPayment(String paymentKey, String orderId, int amount) {
@@ -104,7 +114,7 @@ public class PaymentService {
 
         // 2. DB에서 결제 정보 조회
         Payment payment = paymentRepository.findByTransactionId(orderId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "결제 정보를 찾을 수 없습니다."));
 
         // 3. 결제 상태 업데이트
         payment.setPaymentStatus(PaymentStatus.PAID);
@@ -132,20 +142,21 @@ public class PaymentService {
 
     /**
      * ✅ Toss Payments 환불 처리
-     * @param txId 거래 ID
+     * 
+     * @param txId   거래 ID
      * @param reason 환불 사유
      */
     @Transactional
     public void refundTossPayment(String txId, String reason) {
         Payment payment = paymentRepository.findByTransactionId(txId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND,"결제 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "결제 정보를 찾을 수 없습니다."));
 
         if (payment.getPaymentStatus() != PaymentStatus.PAID) {
-            throw new CustomException(ErrorCode.BAD_REQUEST,"결제 완료 상태에서만 환불이 가능합니다.");
+            throw new CustomException(ErrorCode.BAD_REQUEST, "결제 완료 상태에서만 환불이 가능합니다.");
         }
 
         if (payment.getPaymentKey() == null) {
-            throw new CustomException(ErrorCode.BAD_REQUEST,"결제 키가 없어 환불할 수 없습니다.");
+            throw new CustomException(ErrorCode.BAD_REQUEST, "결제 키가 없어 환불할 수 없습니다.");
         }
 
         // Toss Payments API를 통한 실제 환불 처리
@@ -153,7 +164,7 @@ public class PaymentService {
             tossPaymentsClient.cancelPayment(payment.getPaymentKey(), reason);
         } catch (Exception e) {
             log.error("❌ Toss Payments 환불 실패: {}", e.getMessage());
-            throw new CustomException(ErrorCode.PAYMENT_FAILED,"환불 처리 중 오류가 발생했습니다.");
+            throw new CustomException(ErrorCode.PAYMENT_FAILED, "환불 처리 중 오류가 발생했습니다.");
         }
 
         // DB 상태 업데이트
@@ -165,6 +176,14 @@ public class PaymentService {
         reservation.setReservationStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
 
+        // 🔹 스케줄 복구 (다시 예약 가능 상태로)
+        if (reservation.getSchedule() != null) {
+            Schedule schedule = reservation.getSchedule();
+            schedule.setAvailable(true);
+            scheduleRepository.save(schedule);
+            log.info("✅ 스케줄 복구 완료 - scheduleId: {}", schedule.getId());
+        }
+
         // 환불 알림 발행
         triggerRefundNotification(reservation, payment);
         log.info("✅ Toss 환불 완료 - txId: {}, reason: {}", txId, reason);
@@ -175,11 +194,8 @@ public class PaymentService {
     /** ✅ 사용자: 내 결제내역 조회 */
     @Transactional(readOnly = true)
     public List<PaymentResponse> getMyPayments(Long userId) {
-        return paymentRepository.findAll().stream()
-                .filter(p -> p.getReservation() != null &&
-                        p.getReservation().getUser() !=null &&
-                        p.getReservation().getUser().getId().equals(userId)
-                        )
+        return paymentRepository.findByReservation_User_Id(userId)
+                .stream()
                 .map(PaymentResponse::fromEntity)
                 .toList();
     }
@@ -187,10 +203,20 @@ public class PaymentService {
     /** ✅ 관리자: 전체 결제내역 조회 (필터 가능) */
     @Transactional(readOnly = true)
     public List<PaymentResponse> getAllPayments(String status) {
-        return paymentRepository.findAll().stream()
-                .filter(p -> status == null || p.getPaymentStatus().name().equalsIgnoreCase(status))
-                .map(PaymentResponse::fromEntity)
-                .toList();
+        if (status == null || status.isBlank()) {
+            return paymentRepository.findAll().stream()
+                    .map(PaymentResponse::fromEntity)
+                    .toList();
+        }
+        try {
+            PaymentStatus paymentStatus = PaymentStatus.valueOf(status.toUpperCase());
+            return paymentRepository.findByPaymentStatus(paymentStatus)
+                    .stream()
+                    .map(PaymentResponse::fromEntity)
+                    .toList();
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.BAD_REQUEST, "유효하지 않은 결제 상태 값입니다: " + status);
+        }
     }
 
     /** ✅ 결제 완료 시 알림 이벤트 발행 */
@@ -201,19 +227,17 @@ public class PaymentService {
         if (user != null) {
             eventPublisher.publishNotification(new NotificationEvent(
                     user.getId(),
-                    counselor !=null ? counselor.getId() : null,
+                    counselor != null ? counselor.getId() : null,
                     NotificationType.PAYMENT,
-                    "[결제 완료] 예약 #" + reservation.getId() + "의 결제가 완료되었습니다. (" + payment.getAmount() + "원)"
-            ));
+                    "[결제 완료] 예약 #" + reservation.getId() + "의 결제가 완료되었습니다. (" + payment.getAmount() + "원)"));
         }
 
         if (counselor != null) {
             eventPublisher.publishNotification(new NotificationEvent(
                     counselor.getId(),
-                    counselor.getId(),
+                    user != null ? user.getId() : null, // ✅ 발신자: 사용자 (버그 수정)
                     NotificationType.PAYMENT,
-                    "[신규 결제] " + (user != null ? user.getName() : "사용자") + "님의 상담 결제가 완료되었습니다."
-            ));
+                    "[신규 결제] " + (user != null ? user.getName() : "사용자") + "님의 상담 결제가 완료되었습니다."));
         }
     }
 
@@ -222,13 +246,12 @@ public class PaymentService {
         User user = reservation.getUser();
         User counselor = reservation.getCounselor();
 
-        if (user!=null){
+        if (user != null) {
             eventPublisher.publishNotification(new NotificationEvent(
                     user.getId(),
-                    counselor != null? counselor.getId() : null,
+                    counselor != null ? counselor.getId() : null,
                     NotificationType.REFUND,
-                    "[환불 완료] 예약 #"+reservation.getId()+"의 결제가 환불되었습니다. 금액: "+payment.getAmount()+"원"
-            ));
+                    "[환불 완료] 예약 #" + reservation.getId() + "의 결제가 환불되었습니다. 금액: " + payment.getAmount() + "원"));
         }
     }
 }

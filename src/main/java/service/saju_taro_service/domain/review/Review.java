@@ -8,12 +8,15 @@ import service.saju_taro_service.domain.user.User;
 
 @Entity
 @Table(name = "reviews")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Review extends BaseTimeEntity {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -34,5 +37,6 @@ public class Review extends BaseTimeEntity {
     @Column(length = 1000)
     private String comment;
 
+    @Builder.Default
     private boolean isActive = true;
 }

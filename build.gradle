@@ -10,7 +10,7 @@ description = 'saju_taro_Service'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
@@ -52,4 +52,9 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// ✅ 로컬 개발 시 ./gradlew bootRun 만으로 local 프로파일 자동 적용
+bootRun {
+    args = ["--spring.profiles.active=local"]
 }

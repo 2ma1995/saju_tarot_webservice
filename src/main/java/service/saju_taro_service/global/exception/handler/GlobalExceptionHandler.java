@@ -6,9 +6,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import service.saju_taro_service.global.exception.CustomException;
 import service.saju_taro_service.global.exception.ErrorCode;
 
@@ -19,7 +22,6 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
 
     /**
      * ✅ CustomException (우리 정의한 예외)
@@ -50,6 +52,41 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * ✅ 405 Method Not Allowed (예: GET으로 POST 전용 엔드포인트 접근)
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<?> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("[MethodNotSupported] {} - 허용 메서드: {}", e.getMessage(), e.getSupportedHttpMethods());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(java.util.Map.of(
+                "status", 405,
+                "error", "METHOD_NOT_ALLOWED",
+                "message", "지원하지 않는 HTTP 메서드입니다: " + e.getMethod(),
+                "timestamp", java.time.LocalDateTime.now().toString()));
+    }
+
+    /**
+     * ✅ 404 Not Found (존재하지 않는 경로)
+     */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<?> handleNoHandlerFound(NoHandlerFoundException e) {
+        log.warn("[NoHandlerFound] {}", e.getMessage());
+        return buildResponse(ErrorCode.NOT_FOUND, "존재하지 않는 API 경로입니다: " + e.getRequestURL());
+    }
+
+    /**
+     * ✅ 415 Unsupported Media Type (Content-Type 불일치)
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<?> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        log.warn("[MediaTypeNotSupported] {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(java.util.Map.of(
+                "status", 415,
+                "error", "UNSUPPORTED_MEDIA_TYPE",
+                "message", "Content-Type이 올바르지 않습니다. application/json을 사용하세요.",
+                "timestamp", java.time.LocalDateTime.now().toString()));
+    }
+
+    /**
      * ✅ Validation 예외 (@Valid 검증 실패 시)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -60,16 +97,15 @@ public class GlobalExceptionHandler {
             String message = error.getDefaultMessage();
             errors.put(fieldName, message);
         });
-        
+
         log.error("[ValidationException] {}", errors);
-        
+
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "status", HttpStatus.BAD_REQUEST.value(),
                 "error", "VALIDATION_ERROR",
                 "message", "입력값 검증에 실패했습니다.",
                 "errors", errors,
-                "timestamp", LocalDateTime.now().toString()
-        ));
+                "timestamp", LocalDateTime.now().toString()));
     }
 
     /**
@@ -116,7 +152,6 @@ public class GlobalExceptionHandler {
                 "status", code.getStatus().value(),
                 "error", code.name(),
                 "message", message,
-                "timestamp", LocalDateTime.now().toString()
-        ));
+                "timestamp", LocalDateTime.now().toString()));
     }
 }

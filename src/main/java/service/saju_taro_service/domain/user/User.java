@@ -30,7 +30,7 @@ public class User extends BaseTimeEntity {
     private String email;
 
     @Column(nullable = false, length = 50, unique = true)
-    private String nickname ;
+    private String nickname;
 
     @Column(nullable = false, length = 255)
     private String password;
@@ -38,16 +38,20 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, length = 15)
     private String phone;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "user_role", nullable = false, length = 15)
     private UserRole userRole = UserRole.USER;
 
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @Builder.Default
     @Column(name = "average_rating")
     private Double averageRating = 0.0;
 
+    @Builder.Default
     @Column(name = "review_count")
     private Integer reviewCount = 0;
 

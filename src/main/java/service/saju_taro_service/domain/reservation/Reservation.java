@@ -11,12 +11,15 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reservations")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Reservation extends BaseTimeEntity {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,15 +38,17 @@ public class Reservation extends BaseTimeEntity {
     @JoinColumn(name = "service_item_id", nullable = false)
     private ServiceItem serviceItem; // 상담 서비스 ID
 
-    @Column(name = "reservation_time",nullable = false)
+    @Column(name = "reservation_time", nullable = false)
     private LocalDateTime reservationTime; // 예약 일시
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "reservation_status", nullable = false, length = 20)
     private ReservationStatus reservationStatus = ReservationStatus.RESERVED;
 
     private String note;
 
-    @Column(name = "is_active",nullable = false)
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 }

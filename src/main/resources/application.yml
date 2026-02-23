@@ -4,9 +4,9 @@ file:
 spring:
   # 데이터베이스 설정
   datasource:
-    url: jdbc:mariadb://localhost:3306/saju_db
-    username: root
-    password:
+    url: ${DB_URL:jdbc:mariadb://localhost:3306/saju_db}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
     driver-class-name: org.mariadb.jdbc.Driver
   # JPA설정
   jpa:
@@ -24,15 +24,15 @@ spring:
         order_updates: true
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       timeout: 3000ms
   # 메일 설정
   mail:
     host: smtp.gmail.com
     port: 587
-    username: @gmail.com
-    password:
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -55,14 +55,16 @@ springdoc:
   default-produces-media-type: application/json
 
 toss:
-  client-key: test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm
-  secret-key: test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6
+  client-key: ${TOSS_CLIENT_KEY}
+  secret-key: ${TOSS_SECRET_KEY}
   base-url: https://api.tosspayments.com/v1/payments
   confirm-endpoint: /confirm
   cancel-endpoint: /%s/cancel
 
 jwt:
-  # ⚠️ 실제 운영 시에는 환경변수로 관리하고, 256비트 이상의 강력한 키 사용
-  secret: your-super-secret-jwt-key-minimum-256-bits-required-for-hs256-algorithm
-  access-token-expiry: 3600000  # 1시간 (밀리초)
-  refresh-token-expiry: 604800000  # 7일 (밀리초)
+  secret: ${JWT_SECRET}
+  access-token-expiry: 3600000   # 1시간 (밀리초)
+  refresh-token-expiry: 604800000 # 7일 (밀리초)
+
+firebase:
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:saju-tarot-8bdd07ef4829.json}

@@ -29,6 +29,7 @@ public class Schedule extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalDateTime endTime;
 
+    @Builder.Default
     @Column(nullable = false)
-    private boolean isAvailable = true; // 예약 가능 여부1
+    private boolean isAvailable = true;
 }
