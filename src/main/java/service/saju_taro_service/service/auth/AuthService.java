@@ -1,6 +1,6 @@
 package service.saju_taro_service.service.auth;
 
-import com.nimbusds.oauth2.sdk.token.RefreshToken;
+// import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

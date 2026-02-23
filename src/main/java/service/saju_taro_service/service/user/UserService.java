@@ -5,7 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import service.saju_taro_service.domain.user.User;
-import service.saju_taro_service.domain.user.UserRole;
+// import service.saju_taro_service.domain.user.UserRole;
 import service.saju_taro_service.dto.user.UserResponse;
 import service.saju_taro_service.dto.user.UserSignupRequest;
 import service.saju_taro_service.dto.user.UserUpdateRequest;

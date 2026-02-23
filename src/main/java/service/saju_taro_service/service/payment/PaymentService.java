@@ -86,15 +86,12 @@ public class PaymentService {
         // 🔹 환불 시 예약 상태 취소로 변경
         Reservation reservation = payment.getReservation();
         reservation.setReservationStatus(ReservationStatus.CANCELLED);
-        reservationRepository.save(reservation);
-
         // 🔹 스케줄 복구 (다시 예약 가능 상태로)
         if (reservation.getSchedule() != null) {
             Schedule schedule = reservation.getSchedule();
             schedule.setAvailable(true);
-            scheduleRepository.save(schedule);
         }
-
+        reservationRepository.save(reservation);
         triggerRefundNotification(reservation, payment);
     }
 
@@ -174,16 +171,12 @@ public class PaymentService {
         // 예약 상태 취소로 변경
         Reservation reservation = payment.getReservation();
         reservation.setReservationStatus(ReservationStatus.CANCELLED);
-        reservationRepository.save(reservation);
-
-        // 🔹 스케줄 복구 (다시 예약 가능 상태로)
-        if (reservation.getSchedule() != null) {
-            Schedule schedule = reservation.getSchedule();
+        if(reservation.getSchedule() != null) {
+            service.saju_taro_service.domain.schedule.Schedule schedule = reservation.getSchedule();
             schedule.setAvailable(true);
-            scheduleRepository.save(schedule);
-            log.info("✅ 스케줄 복구 완료 - scheduleId: {}", schedule.getId());
+            
         }
-
+        reservationRepository.save(reservation);
         // 환불 알림 발행
         triggerRefundNotification(reservation, payment);
         log.info("✅ Toss 환불 완료 - txId: {}, reason: {}", txId, reason);

@@ -49,4 +49,8 @@ out/
 dump.rdb
 uploads/
 node_modules/
-.DS_Storesrc/main/resources/*.json
+.DS_Store
+# 민감한 서비스 계정 키 파일
+src/main/resources/*.json
+*-credentials.json
+*-service-account*.json

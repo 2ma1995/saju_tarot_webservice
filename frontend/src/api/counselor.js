@@ -11,6 +11,14 @@ export function getCounselorDetail(id) {
 
 export function getSchedules(counselorId, date) {
     return apiClient.get(`/schedules/counselor/${counselorId}`, {
-        params: { date }
+        params: date ? { date } : {}
     }).then(r => r.data);
+}
+
+export function getServiceItems(counselorId) {
+    return apiClient.get(`/service-items/counselor/${counselorId}`).then(r => r.data);
+}
+
+export function getReviews(counselorId) {
+    return apiClient.get(`/reviews/counselor/${counselorId}`).then(r => r.data);
 }

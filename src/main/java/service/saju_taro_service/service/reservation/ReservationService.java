@@ -19,7 +19,7 @@ import service.saju_taro_service.repository.ReservationRepository;
 import service.saju_taro_service.repository.ScheduleRepository;
 import service.saju_taro_service.repository.ServiceItemRepository;
 import service.saju_taro_service.repository.UserRepository;
-import service.saju_taro_service.service.notification.NotificationService;
+// import service.saju_taro_service.service.notification.NotificationService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
